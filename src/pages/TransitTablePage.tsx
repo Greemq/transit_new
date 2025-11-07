@@ -100,7 +100,7 @@ export const TransitTablePage: React.FC<TransitTablePageProps> = ({
   const [showStatistics, setShowStatistics] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [totalRecords, setTotalRecords] = useState(728904);
-  const [importedStats, setImportedStats] = useState({ high: 1347, elevated: 5892, medium: 12458, low: 25155 });
+  const [importedStats, setImportedStats] = useState({ high: 1326, elevated: 5892, medium: 12458, low: 25155 });
   
   // Подписываемся на изменения данных
   useEffect(() => {

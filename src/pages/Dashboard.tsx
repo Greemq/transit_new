@@ -95,6 +95,8 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       case 'time': return 'Временная';
       case 'route': return 'Маршрутная';
       case 'duplicate': return 'Дубликат';
+      case 'user' : return "Найденные человеком";
+      case 'analyzed' : return "Проанализированно системой";
       default: return 'Неизвестная';
     }
   };
@@ -250,7 +252,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           </div>
           <div className="flex items-center space-x-4">
             {/* Переключатель режима */}
-            <div className="flex items-center space-x-2 bg-gray-100 rounded-lg p-1">
+            {/* <div className="flex items-center space-x-2 bg-gray-100 dark:bg-slate-700 rounded-lg p-1">
               <Button
                 variant={viewMode === 'probability' ? "default" : "ghost"}
                 size="sm"
@@ -269,7 +271,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                 <BarChart3 className="h-4 w-4 mr-1" />
                 Аномалии
               </Button>
-            </div>
+            </div> */}
             
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button 
@@ -299,12 +301,14 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           transition={{ delay: 0.15, staggerChildren: 0.1 }}
         >
           {currentData.map((data, index) => (
+            
             <motion.div 
               key={index}
               initial={{ opacity: 0, y: 20 }} 
               animate={{ opacity: 1, y: 0 }} 
               transition={{ delay: 0.2 + index * 0.1 }}
             >
+              
               <Tooltip delayDuration={100} skipDelayDuration={0}>
                 <TooltipTrigger asChild>
                   <div>
@@ -368,7 +372,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
               <CardTitle className="flex items-center space-x-2">
                 <Activity className="h-5 w-5 text-red-600" />
-                <span>Критические аномалии</span>
+                <span>Аналитика выявления</span>
               </CardTitle>
               <Badge variant="destructive" className="text-xs">
                 {criticalAnomalies.length}
@@ -386,7 +390,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                 </div>
               ) : criticalAnomalies.length > 0 ? (
                 <>
-                  {criticalAnomalies.slice(0, 8).map((anomaly) => {
+                  {criticalAnomalies.map((anomaly) => {
                     const TypeIcon = getTypeIcon(anomaly.type);
                     return (
                       <div 

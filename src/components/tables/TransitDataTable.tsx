@@ -60,7 +60,7 @@ import {
   getAnomalyTypeIcon,
   getAnomalyTypeName
 } from '../../utils/formatters';
-import { generateMockTransitRecords, downloadFile, exportData } from '../../services/transitApi';
+import { generateMockTransitRecords, downloadFile, exportData,parseCsvToObjects,normalizeBIN } from '../../services/transitApi';
 import { dataService, ImportedRecord } from '../../services/dataService';
 import { getCountryDisplayName, getCountryFullName, matchesCountryName } from '../../utils/countryMapping';
 import { toast } from 'sonner@2.0.3';
@@ -90,25 +90,73 @@ export const TransitDataTable: React.FC<TransitDataTableProps> = ({
 
 
   // Конвертация ImportedRecord в TransitRecord
-  const convertImportedToTransitRecord = (record: ImportedRecord, index: number): TransitRecord => {
-    let probability_category = '';
-    switch (record.anomaly_probability) {
-      case 'high':
-        probability_category = 'Высокая вероятность';
-        break;
-      case 'elevated':
-        probability_category = 'Повышенная вероятность';
-        break;
-      case 'medium':
-        probability_category = 'Средняя вероятность';
-        break;
-      case 'low':
-        probability_category = 'Низкая вероятность';
-        break;
-      default:
-        probability_category = 'Низкая вероятность';
-    }
+  // const convertImportedToTransitRecord = (record: ImportedRecord, index: number): TransitRecord => {
+  //   let probability_category = '';
+  //   switch (record.anomaly_probability) {
+  //     case 'high':
+  //       probability_category = 'Высокая вероятность';
+  //       break;
+  //     case 'elevated':
+  //       probability_category = 'Повышенная вероятность';
+  //       break;
+  //     case 'medium':
+  //       probability_category = 'Средняя вероятность';
+  //       break;
+  //     case 'low':
+  //       probability_category = 'Низкая вероятность';
+  //       break;
+  //     default:
+  //       probability_category = 'Низкая вероятность';
+  //   }
 
+  //   const anomalies = (record.anomaly_types || []).map(type => ({
+  //     type: type.includes('_') ? type : `${type}_anomaly`,
+  //     severity: 'medium' as const,
+  //     description: `Обнаружена аномалия типа ${type}`,
+  //     explanation: `Подробное объяснение аномалии ${type}`,
+  //     confidence: Math.random() * 0.4 + 0.6
+  //   }));
+
+  //   let risk_level = 'Минимальный';
+  //   if (anomalies.length > 3) risk_level = 'Критический';
+  //   else if (anomalies.length > 2) risk_level = 'Высокий';
+  //   else if (anomalies.length > 1) risk_level = 'Средний';
+  //   else if (anomalies.length > 0) risk_level = 'Низкий';
+
+  //   // Функция для генерации БИН кода
+  //   const generateBIN = () => {
+  //     const digits = Array.from({length: 12}, () => Math.floor(Math.random() * 10));
+  //     return digits.join('');
+  //   };
+
+  //   return {
+  //     id_import: Number(record.id?.replace(/[^0-9]/g, '')) || (1000000 + index),
+  //     id_export: Number(record.id?.replace(/[^0-9]/g, '')) + 1000000 || (2000000 + index),
+  //     nomer_vagona: record.wagon_container_number || `${Math.floor(Math.random() * 9000) + 1000}${Math.floor(Math.random() * 9000) + 1000}`,
+  //     strana_otpr_import: record.departure_country_code || 'RU',
+  //     strana_nazn_export: record.destination_country_code || 'KZ',
+  //     stancia_otpr: record.departure_station_name || 'Москва-Сорт',
+  //     stancia_pereaddr: record.departure_station_name || 'Промежуточная',
+  //     stancia_nazn: record.destination_station_name || 'Алматы-I',
+  //     data_prib_import: record.arrival_date || new Date().toISOString().split('T')[0],
+  //     data_otpr_export: record.departure_date || new Date().toISOString().split('T')[0],
+  //     ves_import: record.total_weight || Math.floor(Math.random() * 50000) + 1000,
+  //     ves_export: record.wagon_weight || record.total_weight || Math.floor(Math.random() * 50000) + 1000,
+  //     naimenovanie_gruza: record.cargo_name || 'Груз',
+  //     gruzopoluchatel_bin: generateBIN(),
+  //     gruzootpravitel_bin: generateBIN(),
+  //     probability_category,
+  //     anomalies,
+  //     risk_level,
+  //     recommendations: anomalies.length > 0 ? [
+  //       'Требуется дополнительная проверка документов',
+  //       'Рекомендуется физический осмотр груза',
+  //       'Уведомить службу безопасности'
+  //     ] : []
+  //   } as TransitRecord;
+  // };
+  const convertImportedToTransitRecord = (record: any, index: number): TransitRecord => {
+    let probability_category = 'Низкая вероятность';
     const anomalies = (record.anomaly_types || []).map(type => ({
       type: type.includes('_') ? type : `${type}_anomaly`,
       severity: 'medium' as const,
@@ -117,44 +165,58 @@ export const TransitDataTable: React.FC<TransitDataTableProps> = ({
       confidence: Math.random() * 0.4 + 0.6
     }));
 
+  
+    // Определяем уровень риска
     let risk_level = 'Минимальный';
     if (anomalies.length > 3) risk_level = 'Критический';
     else if (anomalies.length > 2) risk_level = 'Высокий';
     else if (anomalies.length > 1) risk_level = 'Средний';
     else if (anomalies.length > 0) risk_level = 'Низкий';
-
-    // Функция для генерации БИН кода
-    const generateBIN = () => {
-      const digits = Array.from({length: 12}, () => Math.floor(Math.random() * 10));
-      return digits.join('');
-    };
-
+  
+    // Генерация БИН (если не указан)
+    const generateBIN = () => Array.from({ length: 12 }, () => Math.floor(Math.random() * 10)).join('');
+    
     return {
-      id_import: Number(record.id?.replace(/[^0-9]/g, '')) || (1000000 + index),
-      id_export: Number(record.id?.replace(/[^0-9]/g, '')) + 1000000 || (2000000 + index),
-      nomer_vagona: record.wagon_container_number || `${Math.floor(Math.random() * 9000) + 1000}${Math.floor(Math.random() * 9000) + 1000}`,
-      strana_otpr_import: record.departure_country_code || 'RU',
-      strana_nazn_export: record.destination_country_code || 'KZ',
-      stancia_otpr: record.departure_station_name || 'Москва-Сорт',
-      stancia_pereaddr: record.departure_station_name || 'Промежуточная',
-      stancia_nazn: record.destination_station_name || 'Алматы-I',
-      data_prib_import: record.arrival_date || new Date().toISOString().split('T')[0],
-      data_otpr_export: record.departure_date || new Date().toISOString().split('T')[0],
-      ves_import: record.total_weight || Math.floor(Math.random() * 50000) + 1000,
-      ves_export: record.wagon_weight || record.total_weight || Math.floor(Math.random() * 50000) + 1000,
-      naimenovanie_gruza: record.cargo_name || 'Груз',
-      gruzopoluchatel_bin: generateBIN(),
-      gruzootpravitel_bin: generateBIN(),
+      id_import: 1000000 + index,
+      id_export: 2000000 + index,
+      nomer_vagona: record["Номер вагона"] || `${Math.floor(Math.random() * 9000) + 1000}${Math.floor(Math.random() * 9000) + 1000}`,
+  
+      strana_otpr_import: record["Страна отправления_импорт"] || "RU",
+      strana_nazn_export: record["Страна назначения_экспорт"] || "KZ",
+  
+      stancia_otpr: record["Станция отправления_импорт"] || "",
+      stancia_pereaddr: record["Станция назначения_импорт"] || "",
+      stancia_nazn: record["Станция назначения_экспорт"] || "",
+      stancia_otpr_kzh: record["Станция отправления_экспорт"] || "",
+      stancia_prib_kzh: record["Станция_прибытия_импорт"] || "",
+  
+      data_prib_import: record["Дата прибытия_импорт"] || new Date().toISOString().split("T")[0],
+      data_otpr_export: record["Дата отправления_экспорт"] || new Date().toISOString().split("T")[0],
+  
+      ves_import: Number(record["ves_import"]) || Math.floor(Math.random() * 50000) + 1000,
+      ves_export: Number(record["ves_export"]) || Math.floor(Math.random() * 50000) + 1000,
+  
+      naimenovanie_gruza: record["Наименование груза"] || "Груз",
+      naimenovanie_plat: record["naimenovanie_plat"] || "",
+  
+      gruzootpravitel_bin: normalizeBIN(record["БИН_импорт"]) || generateBIN(),
+      gruzopoluchatel_bin:normalizeBIN(record["БИН_экспорт"]) || generateBIN(),
+  
+      osobaya_otmetka: record["комент КТЖ"] || "",
+      strana_otpr: record["strana_otpr"] || record["Страна отправления_импорт"] || "RU",
+      strana_nazn: record["strana_nazn"] || record["Страна назначения_экспорт"] || "KZ",
+  
       probability_category,
       anomalies,
       risk_level,
       recommendations: anomalies.length > 0 ? [
-        'Требуется дополнительная проверка документов',
-        'Рекомендуется физический осмотр груза',
-        'Уведомить службу безопасности'
-      ] : []
+              'Требуется дополнительная проверка документов',
+              'Рекомендуется физический осмотр груза',
+              'Уведомить службу безопасности'
+            ] : [],
     } as TransitRecord;
   };
+  
 
   // Загрузка данных
   useEffect(() => {
@@ -162,16 +224,35 @@ export const TransitDataTable: React.FC<TransitDataTableProps> = ({
       setLoading(true);
       
       try {
-        const importedData = dataService.getAllData();
+        // const importedData = dataService.getAllData();
         
+        // let dataToUse: TransitRecord[] = [];
+        
+        // if (importedData.length > 0) {
+        //   dataToUse = importedData.map((record: ImportedRecord, index: number) => 
+        //     convertImportedToTransitRecord(record, index)
+        //   );
+        // } else {
+        //   dataToUse = generateMockTransitRecords(1000);
+        // }
         let dataToUse: TransitRecord[] = [];
+        const response = await fetch('/data/public_data_1.csv');
+        if (response.ok) {
+          const arrayBuffer = await response.arrayBuffer();
         
-        if (importedData.length > 0) {
-          dataToUse = importedData.map((record: ImportedRecord, index: number) => 
+          const decoder = new TextDecoder('windows-1251');
+          const csvText = decoder.decode(arrayBuffer);
+        
+          const parsed = parseCsvToObjects(csvText);
+        
+          dataToUse = parsed.map((record: any, index: number) =>
             convertImportedToTransitRecord(record, index)
           );
-        } else {
-          dataToUse = generateMockTransitRecords(1000);
+        
+          console.log(dataToUse);
+        }
+        else{
+          // dataToUse = generateMockTransitRecords(1000);
         }
         
         // Применяем фильтры и поиск
@@ -451,11 +532,39 @@ export const TransitDataTable: React.FC<TransitDataTableProps> = ({
       </Card>
     );
   }
+  function exportToCSV(data: any[], filename = "transit-data.csv") {
+    if (!data || !data.length) return;
+  
+    const headers = Object.keys(data[0]);
+  
+    const csvContent = [
+      '\uFEFF' + headers.join(';'), 
+      ...data.map(row =>
+        headers.map(h => {
+          const val = row[h] ?? '';
+          return `"${val.toString().replace(/"/g, '""')}"`;
+        }).join(';')
+      )
+    ].join('\n');
+  
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+  
+  
 
   return (
     <div className={cn('h-full flex flex-col', className)}>
 
-
+      
       {/* Поиск */}
       <div className="flex items-center space-x-4 p-4 border-b">
         <div className="relative flex-1">
@@ -474,6 +583,10 @@ export const TransitDataTable: React.FC<TransitDataTableProps> = ({
         >
           <Filter className="h-4 w-4 mr-2" />
           Фильтры
+        </Button>
+        <Button  onClick={() => exportToCSV(records, "transit-data.csv")}
+          size="sm">
+          Экспорт
         </Button>
       </div>
 
